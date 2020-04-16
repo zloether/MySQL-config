@@ -1,0 +1,78 @@
+#!/usr/bin/env ansible-playbook -i inventory --ask-pass --ask-become-pass --check ansible-playbook.yml
+
+---
+- hosts: scoreboard
+  become: yes
+  vars:
+    mysql_port: 3306
+    app_name: mysql
+    #data_dir: "/opt/{{ app_name }}"
+    time_zone: "America/New_York"
+  tasks:
+  - name: set timezone
+    timezone:
+      name: "{{ time_zone }}"
+  - name: install updates
+    apt:
+      autoremove: yes
+      update_cache: yes
+      upgrade: safe
+  - name: specify mysql root password before installing
+    debconf:
+      name: mysql-server
+      question: "mysql-server/root_password"
+      value: "{{ mysql_root_password | quote }}"
+      vtype: password
+  - name: confim mysql root password
+    debconf:
+      name: mysql-server
+      question: "mysql-server/root_password_again"
+      value: "{{ mysql_root_password | quote }}"
+      vtype: password
+  - name: install packages
+    apt:
+      package:
+        - mysql-server
+        - python3-pymysql
+  - name: start app
+    service:
+      name: "{{ app_name }}"
+      state: started
+      enabled: yes
+  - name: create credential file
+    template:
+      src: ansible-files/my.cnf
+      dest: /root/.my.cnf
+      owner: root
+      group: root
+      mode: 0600
+  - name: set root password
+    mysql_user:
+      user: root
+      password: "{{ mysql_root_password }}"
+      host: localhost
+  - name: remove anonymous users
+    mysql_user:
+      user: ""
+      host: localhost
+      state: absent
+  - name: remove test database
+    mysql_db:
+      db: test
+      state: absent
+  - name: create app database
+    mysql_db:
+      db: "{{ mysql_app_database }}"
+      state: present
+  - name: create application user
+    mysql_user:
+      user: "{{ mysql_app_user }}"
+      password: "{{ mysql_app_password }}"
+      host: "localhost"
+      state: present
+      priv: '{{ mysql_app_database }}.*:ALL'
+  handlers:
+  - name: restart app
+    service:
+      name: "{{ app_name }}"
+      state: restarted
