@@ -1,6 +1,9 @@
-[scoreboard]
+[databases]
 10.0.0.x ansible_user=<username>
 
-[scoreboard:vars]
+[databases:vars]
 ansible_python_interpreter=/usr/bin/python3
-time_zone="America/New_York"
+mysql_root_password=<root_password>
+mysql_app_user=<username>
+mysql_app_password=<password>
+mysql_app_database=<db_name>
